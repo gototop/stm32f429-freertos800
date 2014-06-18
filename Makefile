@@ -213,7 +213,7 @@ UGFX_BENCHMARKS_OBJS += \
     $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_lcd.o \
     $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_sdram.o
 SHELL_OBJS += \
-    $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_lcd.o \
+#    $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_lcd.o \
     $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_sdram.o
 
 # FreeRTOS
@@ -343,7 +343,7 @@ SHELL_OBJS += \
     $(PLUS)/fio.o \
     $(PLUS)/clib.o \
 #	$(PLUS)/stm32_p103.o \
-	$(PLUS)/romfs.o \
+#	$(PLUS)/romfs.o \
 	$(PLUS)/hash-djb2.o \
 	$(PLUS)/filesystem.o \
     $(PLUS)/osdebug.o \

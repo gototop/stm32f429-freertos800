@@ -1,0 +1,310 @@
+/* Standard includes. */
+#include <stdio.h>
+
+/* Scheduler includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+
+/* Library includes. */
+#include "stm32f4xx_it.h"
+#include "stm32f4xx_tim.h"
+#include "stm32f429i_discovery_lcd.h"
+#include "stm32_eval_legacy.h"
+
+#include "FreeRTOSConfig.h"
+/* Demo app includes. */
+#include "BlockQ.h"
+#include "integer.h"
+#include "flash.h"
+#include "partest.h"
+#include "semtest.h"
+#include "PollQ.h"
+#include "GenQTest.h"
+#include "QPeek.h"
+#include "recmutex.h"
+#if 0
+#define USE_STDPERIPH_DRIVER
+#include "stm32f4xx_conf.h"
+#include "stm32_p103.h"
+/* Scheduler includes. */
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+#include <string.h>
+
+/* Filesystem includes */
+#include "filesystem.h"
+#include "fio.h"
+#include "romfs.h"
+
+#include "clib.h"
+#endif
+
+#include "shell.h"
+
+void RCC_Configuration(void)
+{
+      /* --------------------------- System Clocks Configuration -----------------*/
+      /* USART1 clock enable */
+      RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
+      /* GPIOA clock enable */
+      RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
+}
+void GPIO_Configuration(void)
+{
+    GPIO_InitTypeDef GPIO_InitStructure;
+
+    /*-------------------------- GPIO Configuration ----------------------------*/
+    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_10;
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
+    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    /* Connect USART pins to AF */
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);   // USART1_TX
+    GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_USART1);  // USART1_RX
+}
+void USART1_Configuration(void)
+{
+    USART_InitTypeDef USART_InitStructure;
+
+    /* USARTx configuration ------------------------------------------------------*/
+    /* USARTx configured as follow:
+     *  - BaudRate = 9600 baud
+     *  - Word Length = 8 Bits
+     *  - One Stop Bit
+     *  - No parity
+     *  - Hardware flow control disabled (RTS and CTS signals)
+     *  - Receive and transmit enabled
+     */
+    USART_InitStructure.USART_BaudRate = 115200;
+    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
+    USART_InitStructure.USART_StopBits = USART_StopBits_1;
+    USART_InitStructure.USART_Parity = USART_Parity_No;
+    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
+    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
+    USART_Init(USART1, &USART_InitStructure);
+    USART_Cmd(USART1, ENABLE);
+}
+void USART1_puts(char* s)
+{
+    while(*s) {
+        while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+        USART_SendData(USART1, *s);
+        s++;
+    }
+}
+
+
+
+/* _sromfs symbol can be found in main.ld linker script
+ * it contains file system structure of test_romfs directory
+ */
+extern const unsigned char _sromfs;
+
+static void setup_hardware();
+
+volatile xSemaphoreHandle serial_tx_wait_sem = NULL;
+/* Add for serial input */
+volatile xQueueHandle serial_rx_queue = NULL;
+
+void vApplicationTickHook( void )
+{
+    #if ( mainCREATE_SIMPLE_LED_FLASHER_DEMO_ONLY == 0 )
+    {
+        /* Just to verify that the interrupt nesting behaves as expected,
+        increment ulFPUInterruptNesting on entry, and decrement it on exit. */
+        ulFPUInterruptNesting++;
+
+        /* Fill the FPU registers with 0. */
+        //vRegTestClearFlopRegistersToParameterValue( 0UL );
+
+        /* Trigger a timer 2 interrupt, which will fill the registers with a
+        different value and itself trigger a timer 3 interrupt.  Note that the
+        timers are not actually used.  The timer 2 and 3 interrupt vectors are
+        just used for convenience. */
+        NVIC_SetPendingIRQ( TIM2_IRQn );
+
+        /* Ensure that, after returning from the nested interrupts, all the FPU
+        registers contain the value to which they were set by the tick hook
+        function. */
+        //configASSERT( ulRegTestCheckFlopRegistersContainParameterValue( 0UL ) );
+
+        ulFPUInterruptNesting--;
+    }
+    #endif
+}
+
+void vApplicationStackOverflowHook( xTaskHandle pxTask, signed char *pcTaskName )
+{
+    ( void ) pcTaskName;
+    ( void ) pxTask;
+
+    /* Run time stack overflow checking is performed if
+    configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
+    function is called if a stack overflow is detected. */
+    taskDISABLE_INTERRUPTS();
+    for( ;; );
+}
+
+
+/* IRQ handler to handle USART2 interruptss (both transmit and receive
+ * interrupts). */
+void USART2_IRQHandler()
+{
+	static signed portBASE_TYPE xHigherPriorityTaskWoken;
+
+	/* If this interrupt is for a transmit... */
+	if (USART_GetITStatus(USART2, USART_IT_TXE) != RESET) {
+		/* "give" the serial_tx_wait_sem semaphore to notfiy processes
+		 * that the buffer has a spot free for the next byte.
+		 */
+		xSemaphoreGiveFromISR(serial_tx_wait_sem, &xHigherPriorityTaskWoken);
+
+		/* Diables the transmit interrupt. */
+		USART_ITConfig(USART2, USART_IT_TXE, DISABLE);
+		/* If this interrupt is for a receive... */
+	}else if(USART_GetITStatus(USART2, USART_IT_RXNE) != RESET){
+		char msg = USART_ReceiveData(USART1);
+
+		/* If there is an error when queueing the received byte, freeze! */
+		if(!xQueueSendToBackFromISR(serial_rx_queue, &msg, &xHigherPriorityTaskWoken))
+			while(1);
+	}
+	else {
+		/* Only transmit and receive interrupts should be enabled.
+		 * If this is another type of interrupt, freeze.
+		 */
+		while(1);
+	}
+
+	if (xHigherPriorityTaskWoken) {
+		taskYIELD();
+	}
+}
+
+void send_byte(char ch)
+{
+	/* Wait until the RS232 port can receive another byte (this semaphore
+	 * is "given" by the RS232 port interrupt when the buffer has room for
+	 * another byte.
+	 */
+	while (!xSemaphoreTake(serial_tx_wait_sem, portMAX_DELAY));
+
+	/* Send the byte and enable the transmit interrupt (it is disabled by
+	 * the interrupt).
+	 */
+	USART_SendData(USART1, ch);
+	USART_ITConfig(USART1, USART_IT_TXE, ENABLE);
+}
+
+char recv_byte()
+{
+	USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);
+	char msg;
+	while(!xQueueReceive(serial_rx_queue, &msg, portMAX_DELAY));
+	return msg;
+}
+void command_prompt(void *pvParameters)
+{
+	char buf[128];
+	char *argv[20];
+	fio_printf(1, "\rWelcome to FreeRTOS Shell\r\n");
+	while(1){
+		fio_printf(1, "\r>>");
+		fio_read(0, buf, 127);
+	
+		int n=parse_command(buf, argv);
+
+		/* will return pointer to the command function */
+		cmdfunc *fptr=do_command(argv[0]);
+		if(fptr!=NULL)
+			fptr(n, argv);
+		else
+			fio_printf(2, "\r\n\"%s\" command not found.\r\n", argv[0]);
+	}
+
+}
+
+int main()
+{
+	fio_init();
+#if 0
+	init_rs232();
+	enable_rs232_interrupts();
+	enable_rs232();
+//	fs_init();
+	
+//	register_romfs("romfs", &_sromfs);
+	
+	/* Create the queue used by the serial task.  Messages for write to
+	 * the RS232. */
+	vSemaphoreCreateBinary(serial_tx_wait_sem);
+	/* Add for serial input 
+	 * Reference: www.freertos.org/a00116.html */
+	serial_rx_queue = xQueueCreate(1, sizeof(char));
+
+	/* Create a task to output text read from romfs. */
+	xTaskCreate(command_prompt,
+	            (signed portCHAR *) "Command Prompt",
+	            512 /* stack size */, NULL, tskIDLE_PRIORITY + 2, NULL);
+
+	/* Start running the tasks. */
+	vTaskStartScheduler();
+
+	return 0;
+#endif
+	RCC_Configuration();
+    GPIO_Configuration();
+    USART1_Configuration();
+
+    USART1_puts("Hello World!\r\n");
+    USART1_puts("Just for STM32F429I Discovery verify USART1 with USB TTL Cable\r\n");
+	/* Create the queue used by the serial task.  Messages for write to
+	 * the RS232. */
+	vSemaphoreCreateBinary(serial_tx_wait_sem);
+	/* Add for serial input 
+	 * Reference: www.freertos.org/a00116.html */
+	serial_rx_queue = xQueueCreate(1, sizeof(char));
+
+	/* Create a task to output text read from romfs. */
+	xTaskCreate(command_prompt,
+	            (signed portCHAR *) "Command Prompt",
+	            512 /* stack size */, NULL, tskIDLE_PRIORITY + 2, NULL);
+
+	/* Start running the tasks. */
+	vTaskStartScheduler();
+    while(1)
+    {
+        while(USART_GetFlagStatus(USART1, USART_FLAG_RXNE) == RESET);
+        char t = USART_ReceiveData(USART1);
+        if ((t == '\r')) {
+            while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+            USART_SendData(USART1, t);
+            t = '\n';
+        }
+        while(USART_GetFlagStatus(USART1, USART_FLAG_TXE) == RESET);
+        USART_SendData(USART1, t);
+    }
+}
+
+pplicationStackOverflowHook( xTaskHandle pxTask, signed char *pcTaskName )
+{
+    ( void ) pcTaskName;
+    ( void ) pxTask;
+
+    /* Run time stack overflow checking is performed if
+    configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2.  This hook
+    function is called if a stack overflow is detected. */
+    taskDISABLE_INTERRUPTS();
+    for( ;; );
+}
+/*-----------------------------------------------------------*/
+
+void assert_failed(uint8_t* file, uint32_t line)
+{
+}

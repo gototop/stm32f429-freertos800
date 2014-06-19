@@ -13,7 +13,7 @@
 #include "stm32f429i_discovery_lcd.h"
 #include "stm32_eval_legacy.h"
 
-#include "FreeRTOSConfig.h"
+//#include "FreeRTOSConfig.h"
 /* Demo app includes. */
 #include "BlockQ.h"
 #include "integer.h"
@@ -28,68 +28,26 @@
 #define USE_STDPERIPH_DRIVER
 #include "stm32f4xx_conf.h"
 #include "stm32_p103.h"
-/* Scheduler includes. */
-#include "task.h"
-#include "queue.h"
-#include "semphr.h"
-#include <string.h>
 
 /* Filesystem includes */
 #include "filesystem.h"
-#include "fio.h"
 #include "romfs.h"
 
 #include "clib.h"
 #endif
 
+#include "fio.h"
 #include "shell.h"
-#if 0
-void RCC_Configuration(void)
-{
-      /* --------------------------- System Clocks Configuration -----------------*/
-      /* USART1 clock enable */
-      RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
-      /* GPIOA clock enable */
-      RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-}
-void GPIO_Configuration(void)
-{
-    GPIO_InitTypeDef GPIO_InitStructure;
+//#include "gfx.h"
 
-    /*-------------------------- GPIO Configuration ----------------------------*/
-    GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_10;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-    GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
-    GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(GPIOA, &GPIO_InitStructure);
+static void prvSetupHardware( void );
 
-    /* Connect USART pins to AF */
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource9, GPIO_AF_USART1);   // USART1_TX
-    GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_USART1);  // USART1_RX
-}
-void USART1_Configuration(void)
-{
-    USART_InitTypeDef USART_InitStructure;
+/*
+ * Configures the high frequency timers - those used to measure the timing
+ * jitter while the real time kernel is executing.
+ */
+extern void vSetupHighFrequencyTimer( void );
 
-    /* USARTx configuration ------------------------------------------------------*/
-    /* USARTx configured as follow:
-     *  - BaudRate = 9600 baud
-     *  - Word Length = 8 Bits
-     *  - One Stop Bit
-     *  - No parity
-     *  - Hardware flow control disabled (RTS and CTS signals)
-     *  - Receive and transmit enabled
-     */
-    USART_InitStructure.USART_BaudRate = 115200;
-    USART_InitStructure.USART_WordLength = USART_WordLength_8b;
-    USART_InitStructure.USART_StopBits = USART_StopBits_1;
-    USART_InitStructure.USART_Parity = USART_Parity_No;
-    USART_InitStructure.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
-    USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-    USART_Init(USART1, &USART_InitStructure);
-    USART_Cmd(USART1, ENABLE);
-}
 void USART1_puts(char* s)
 {
     while(*s) {
@@ -99,18 +57,26 @@ void USART1_puts(char* s)
     }
 }
 
-#endif
-
 /* _sromfs symbol can be found in main.ld linker script
  * it contains file system structure of test_romfs directory
  */
 extern const unsigned char _sromfs;
 
-static void setup_hardware();
-
 volatile xSemaphoreHandle serial_tx_wait_sem = NULL;
 /* Add for serial input */
 volatile xQueueHandle serial_rx_queue = NULL;
+
+void prvSetupHardware( void )
+{
+    /* Setup STM32 system (clock, PLL and Flash configuration) */
+    SystemInit();
+
+    /* Ensure all priority bits are assigned as preemption priority bits. */
+    NVIC_PriorityGroupConfig( NVIC_PriorityGroup_4 );
+
+    /* Initialise the IO used for the LED outputs. */
+    vParTestInitialise();
+}
 
 /* IRQ handler to handle USART1 interruptss (both transmit and receive
  * interrupts). */
@@ -169,6 +135,7 @@ char recv_byte()
 	while(!xQueueReceive(serial_rx_queue, &msg, portMAX_DELAY));
 	return msg;
 }
+
 void command_prompt(void *pvParameters)
 {
 	char buf[128];
@@ -190,16 +157,13 @@ void command_prompt(void *pvParameters)
 
 }
 
-int main()
+void Init_usart()
 {
-	fio_init();
-//	fs_init();
-/*------------------------------------------------------------------------------*/
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1, ENABLE);
     RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 
 	GPIO_InitTypeDef GPIO_InitStructure;
-/*-------------------------- GPIO Configuration --------------------------------*/
+/*------------------ GPIO Configuration --------------------------------*/
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9 | GPIO_Pin_10;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
     GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -221,7 +185,7 @@ int main()
     USART_InitStructure.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
     USART_Init(USART1, &USART_InitStructure);
     USART_Cmd(USART1, ENABLE);
-/*------------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------*/
 	NVIC_InitTypeDef NVIC_InitStructure;
 
     /* Enable transmit and receive interrupts for the USART1. */
@@ -236,7 +200,15 @@ int main()
     NVIC_Init(&NVIC_InitStructure);
 
 	USART_Cmd(USART1, ENABLE);
+}
+
+int main()
+{
 	
+	fio_init();
+//	fs_init();
+	prvSetupHardware();
+	Init_usart();
 //	register_romfs("romfs", &_sromfs);
 	
 	/* Create the queue used by the serial task.  Messages for write to
@@ -246,13 +218,15 @@ int main()
 	 * Reference: www.freertos.org/a00116.html */
 	serial_rx_queue = xQueueCreate(1, sizeof(char));
 
+
 	/* Create a task to output text read from romfs. */
 	xTaskCreate(command_prompt,
 	            (signed portCHAR *) "Command Prompt",
 	            512 /* stack size */, NULL, tskIDLE_PRIORITY + 2, NULL);
-
+	vSetupHighFrequencyTimer();
 	/* Start running the tasks. */
 	vTaskStartScheduler();
+	for( ;; );
 }
 
 void vApplicationStackOverflowHook( xTaskHandle pxTask, signed char *pcTaskName )

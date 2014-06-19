@@ -105,7 +105,10 @@ SHELL_OBJS = \
     ParTest.o \
     port.o \
 	timertest.o \
-    system_stm32f4xx.o
+    system_stm32f4xx.o \
+	#gdisp_lld_ILI9341.o \
+    ginput_lld_mouse.o \
+	#apps.o 
 
 # Startup file
 SIMPLE_LED_OBJS += startup_stm32f429_439xx.o
@@ -213,7 +216,8 @@ UGFX_BENCHMARKS_OBJS += \
     $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_lcd.o \
     $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_sdram.o
 SHELL_OBJS += \
-#    $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_lcd.o \
+    $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_ioe.o \
+    $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_lcd.o \
     $(STDP)/Utilities/STM32F429I-Discovery/stm32f429i_discovery_sdram.o
 
 # FreeRTOS
@@ -334,6 +338,22 @@ UGFX_BENCHMARKS_OBJS += \
     $(UGFX)/src/gwin/gwin.o \
     $(UGFX)/src/gwin/gwm.o
 SHELL_OBJS += \
+#	$(UGFX)/src/gfx.o \
+    $(UGFX)/src/gdisp/fonts.o \
+    $(UGFX)/src/gdisp/gdisp.o \
+    $(UGFX)/src/gdisp/mcufont/mf_encoding.o \
+    $(UGFX)/src/gdisp/mcufont/mf_font.o \
+    $(UGFX)/src/gdisp/mcufont/mf_justify.o \
+    $(UGFX)/src/gdisp/mcufont/mf_scaledfont.o \
+    $(UGFX)/src/gdisp/mcufont/mf_rlefont.o \
+    $(UGFX)/src/gevent/gevent.o \
+    $(UGFX)/src/ginput/ginput.o \
+    $(UGFX)/src/ginput/mouse.o \
+    $(UGFX)/src/gos/freertos.o \
+    $(UGFX)/src/gtimer/gtimer.o \
+    $(UGFX)/src/gwin/console.o \
+    $(UGFX)/src/gwin/gwin.o \
+    $(UGFX)/src/gwin/gwm.o
 
 #New
 PLUS = ./freertos
@@ -407,9 +427,9 @@ ugfx-benchmarks: $(UGFX_BENCHMARKS_OBJS)
 ugfx-benchmarks: CFLAGS += -DGFX_USE_OS_FREERTOS=TRUE -DGFX_BENCHMARKS_DEMO=TRUE
 ugfx-benchmarks: OBJS = $(UGFX_BENCHMARKS_OBJS)
 ugfx-benchmarks: $(BIN_IMAGE)
-
+#-DmainCREATE_SIMPLE_LED_FLASHER_DEMO_ONLY=1
 shell: $(SHELL_OBJS)
-shell: CFLAGS += -DmainCREATE_SIMPLE_LED_FLASHER_DEMO_ONLY=1
+shell: CFLAGS += -DGFX_USE_OS_FREERTOS=TRUE -DGFX_MANDELBROT_DEMO=TRUE
 shell: OBJS = $(SHELL_OBJS)
 shell: $(BIN_IMAGE)
 
@@ -447,11 +467,11 @@ endif
 
 clean:
 ifeq ($(VERBOSE_COMPILE),yes)
-	rm -f $(OBJS) $(SIMPLE_LED_OBJS) $(COMPLEX_LED_OBJS) $(LCD_OBJS) $(UGFX_BASIC_OBJS) $(UGFX_OBJS) $(UGFX_MANDEL_OBJS)
+	rm -f $(OBJS) $(SIMPLE_LED_OBJS) $(COMPLEX_LED_OBJS) $(LCD_OBJS) $(UGFX_BASIC_OBJS) $(UGFX_OBJS) $(UGFX_MANDEL_OBJS) $(UGFX_BENCHMARKS_OBJS)  $(SHELL_OBJS)
 	rm -f $(EXECUTABLE) $(BIN_IMAGE) $(HEX_IMAGE)
 	rm -f $(PROJECT).lst
 else
-	@rm -f $(OBJS) $(SIMPLE_LED_OBJS) $(COMPLEX_LED_OBJS) $(LCD_OBJS) $(UGFX_BASIC_OBJS) $(UGFX_OBJS) $(UGFX_MANDEL_OBJS)
+	@rm -f $(OBJS) $(SIMPLE_LED_OBJS) $(COMPLEX_LED_OBJS) $(LCD_OBJS) $(UGFX_BASIC_OBJS) $(UGFX_OBJS) $(UGFX_MANDEL_OBJS) $(UGFX_BENCHMARKS_OBJS) $(SHELL_OBJS)
 	@rm -f $(EXECUTABLE) $(BIN_IMAGE) $(HEX_IMAGE)
 	@rm -f $(PROJECT).lst
 	@echo Objects deleted.

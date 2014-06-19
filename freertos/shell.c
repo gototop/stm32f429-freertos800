@@ -5,10 +5,190 @@
 #include "fio.h"
 #include "filesystem.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
 #include "host.h"
 
+/* Standard includes. */
+#include <stdio.h>
+
+/* Scheduler includes. */
+#include "FreeRTOS.h"
+#include "task.h"
+#include "queue.h"
+#include "semphr.h"
+
+/* Library includes. */
+#include "stm32f4xx_it.h"
+#include "stm32f4xx_tim.h"
+#include "stm32f429i_discovery_lcd.h"
+#include "stm32_eval_legacy.h"
+
+//#include "gfx.h"
+
+static void prvLCDTask( void *pvParameters );
+/*
+static void prvLCDTask2( void *pvParameters );
+*/
+QueueHandle_t xLCDQueue;
+
+static void prvLCDTask( void *pvParameters )
+{
+	unsigned char *pucMessage;
+	unsigned long ulLine = Line3;
+	const unsigned long ulLineHeight = 12;
+	static char cMsgBuf[ 30 ];
+	extern unsigned short usMaxJitter;
+
+    ( void ) pvParameters;
+
+    /* The LCD gatekeeper task as described in the comments at the top of this
+    file. */
+
+    /* Init LCD and LTCD. Enable layer1 only. */
+    LCD_Init();
+    LCD_LayerInit();
+    LTDC_LayerCmd(LTDC_Layer1, ENABLE);
+	LTDC_LayerCmd(LTDC_Layer2, DISABLE);
+    LTDC_ReloadConfig(LTDC_IMReload);
+    LTDC_Cmd(ENABLE);
+    LCD_SetLayer(LCD_BACKGROUND_LAYER);
+
+    /* Display startup messages. */
+    LCD_SetFont(&Font8x12);
+    LCD_Clear(White);
+    LCD_SetTextColor(Green);
+    LCD_DisplayStringLine( Line0, (uint8_t *)"       www.freertos.org" );
+    LCD_SetTextColor(Blue);
+    LCD_DisplayStringLine( Line1, (uint8_t *)"     STM32F429i Discovery" );
+    LCD_SetTextColor(Black);
+	for( ;; )
+    {
+        /* Wait for a message to arrive to be displayed. */
+        xQueueReceive( xLCDQueue, &pucMessage, portMAX_DELAY );
+
+        /* Clear the current line of text. */
+        LCD_ClearLine( ulLine );
+
+        /* Move on to the next line. */
+        ulLine += ulLineHeight;
+        if( ulLine > LCD_LINE_18 )
+        {
+            ulLine = Line3;
+        }
+
+        /* Display the received text, and the max jitter value. */
+        sprintf( cMsgBuf, "%s [%luns]", pucMessage, usMaxJitter * mainNS_PER_CLOCK );
+        LCD_DisplayStringLine( ulLine, ( unsigned char * ) cMsgBuf );
+    }
+}
+#if 0
+void mandelbrot(float x1, float y1, float x2, float y2) {
+    unsigned int i,j, width, height;
+    uint16_t iter;
+    color_t color;
+    float fwidth, fheight;
+   
+    float sy = y2 - y1;
+    float sx = x2 - x1;
+    const int MAX = 512;
+
+    width = (unsigned int)gdispGetWidth();
+    height = (unsigned int)gdispGetHeight();
+    fwidth = width;
+    fheight = height;
+
+    for(i = 0; i < width; i++) {
+        for(j = 0; j < height; j++) {
+            float cy = j * sy / fheight + y1;
+            float cx = i * sx / fwidth + x1;
+            float x=0.0f, y=0.0f, xx=0.0f, yy=0.0f;
+            for(iter=0; iter <= MAX && xx+yy<4.0f; iter++) {
+                xx = x*x;
+                yy = y*y;
+                y = 2.0f*x*y + cy;
+                x = xx - yy + cx;
+            }
+            //color = ((iter << 8) | (iter&0xFF));
+            color = RGB2COLOR(iter<<7, iter<<4, iter);
+            gdispDrawPixel(i, j, color);
+        }
+    }
+}
+
+void drawScreen(void)
+{
+	char *msg = "uGFX";
+	font_t		font1, font2;
+
+	font1 = gdispOpenFont("DejaVuSans24*");
+	font2 = gdispOpenFont("DejaVuSans12*");
+
+	gdispClear(White);
+	gdispDrawString(gdispGetWidth()-gdispGetStringWidth(msg, font1)-3, 3, msg, font1, Black);
+
+	/* colors */
+	gdispFillArea(0 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);	/* Black */
+	gdispFillArea(1 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Red);		/* Red */
+	gdispFillArea(2 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Yellow);	/* Yellow */
+	gdispFillArea(3 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Green);	/* Green */
+	gdispFillArea(4 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Blue);		/* Blue */
+	gdispDrawBox (5 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);	/* White */
+
+	/* pens */
+	gdispFillStringBox(POFFSET * 2, DRAW_PEN(1), PEN_SIZE, PEN_SIZE, "1", font2, White, Black, justifyCenter);
+	gdispFillStringBox(POFFSET * 2, DRAW_PEN(2), PEN_SIZE, PEN_SIZE, "2", font2, White, Black, justifyCenter);
+	gdispFillStringBox(POFFSET * 2, DRAW_PEN(3), PEN_SIZE, PEN_SIZE, "3", font2, White, Black, justifyCenter);
+	gdispFillStringBox(POFFSET * 2, DRAW_PEN(4), PEN_SIZE, PEN_SIZE, "4", font2, White, Black, justifyCenter);
+	gdispFillStringBox(POFFSET * 2, DRAW_PEN(5), PEN_SIZE, PEN_SIZE, "5", font2, White, Black, justifyCenter);
+
+	gdispCloseFont(font1);
+	gdispCloseFont(font2);
+}
+
+/* GFX notepad demo */
+static void prvLCDTask2(void *pvParameters)
+{
+    color_t color = Black;
+    uint16_t pen = 0;
+
+    ( void ) pvParameters;
+
+    gfxInit();
+    ginputGetMouse(0);
+
+    drawScreen();
+
+    while (TRUE) {
+        ginputGetMouseStatus(0, &ev);
+        if (!(ev.current_buttons & GINPUT_MOUSE_BTN_LEFT))
+            continue;
+
+        /* inside color box ? */
+        if(ev.y >= POFFSET && ev.y <= COLOR_SIZE) {
+                 if(GET_COLOR(0))   color = Black;
+			else if(GET_COLOR(1))   color = Red;
+            else if(GET_COLOR(2))   color = Yellow;
+            else if(GET_COLOR(3))   color = Green;
+            else if(GET_COLOR(4))   color = Blue;
+            else if(GET_COLOR(5))   color = White;
+
+        /* inside pen box ? */
+        } else if(ev.x >= POFFSET && ev.x <= PEN_SIZE) {
+                 if(GET_PEN(1))     pen = 0;
+            else if(GET_PEN(2))     pen = 1;
+            else if(GET_PEN(3))     pen = 2;
+            else if(GET_PEN(4))     pen = 3;
+            else if(GET_PEN(5))     pen = 4;
+
+        /* inside drawing area ? */
+        } else if(DRAW_AREA(ev.x, ev.y)) {
+            if(pen == 0)
+                gdispDrawPixel(ev.x, ev.y, color);
+            else
+                gdispFillCircle(ev.x, ev.y, pen, color);
+        }
+	}
+}
+#endif
 typedef struct {
 	const char *name;
 	cmdfunc *fptr;
@@ -23,17 +203,23 @@ void host_command(int, char **);
 void help_command(int, char **);
 void host_command(int, char **);
 void mmtest_command(int, char **);
+void test_command(int, char **);
+//void mandel_command(int, char **);
+//void ugfx_command(int, char **);
 
 #define MKCL(n, d) {.name=#n, .fptr=n ## _command, .desc=d}
 
 cmdlist cl[]={
-//	MKCL(ls, "List directory"),
+	MKCL(ls, "List directory"),
 	MKCL(man, "Show the manual of the command"),
 //	MKCL(cat, "Concatenate files and print on the stdout"),
 	MKCL(ps, "Report a snapshot of the current processes"),
 //	MKCL(host, "Run command on host"),
 //	MKCL(mmtest, "heap memory allocation test"),
 	MKCL(help, "help"),
+	MKCL(test, "test LCD"),
+//	MKCL(mandel, "test mandelbrot"),
+//	MKCL(ugfx, "test ugfx"),
 };
 
 int parse_command(char *str, char *argv[]){
@@ -56,11 +242,11 @@ int parse_command(char *str, char *argv[]){
 
 	return count;
 }
-/*
+
 void ls_command(int n, char *argv[]){
 
 }
-*/
+
 int filedump(const char *filename){
 	char buf[128];
 /*
@@ -133,6 +319,40 @@ void help_command(int n,char *argv[]){
 	}
 }
 
+void test_command(int n,char *argv[]){
+	/* Create the queue used by the LCD task.  Messages for display on the LCD
+	are received via this queue. */
+	xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+	/* Start the LCD gatekeeper task - as described in the comments at the top
+	of this file. */	
+	xTaskCreate( prvLCDTask, "LCD", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY, NULL );
+}
+#if 0
+void mandel_command(int n,char *argv[]){
+    float cx, cy;
+    float zoom = 1.0f;
+
+    gfxInit();
+
+    /* where to zoom in */
+    cx = -0.086f;
+    cy = 0.85f;
+
+    while(TRUE) {
+        mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy);
+
+        zoom *= 0.7f;
+        if(zoom <= 0.00001f)
+            zoom = 1.0f;
+    }
+}
+
+void ugfx_command(int n,char *argv[]){
+	//xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+	/* Start the LCD task */
+	xTaskCreate( prvLCDTask2, "LCD", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY, NULL );
+}
+#endif
 cmdfunc *do_command(const char *cmd){
 
 	int i;

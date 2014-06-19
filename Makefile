@@ -106,7 +106,7 @@ SHELL_OBJS = \
     port.o \
 	timertest.o \
     system_stm32f4xx.o \
-	#gdisp_lld_ILI9341.o \
+	gdisp_lld_ILI9341.o \
     ginput_lld_mouse.o \
 	#apps.o 
 
@@ -338,7 +338,7 @@ UGFX_BENCHMARKS_OBJS += \
     $(UGFX)/src/gwin/gwin.o \
     $(UGFX)/src/gwin/gwm.o
 SHELL_OBJS += \
-#	$(UGFX)/src/gfx.o \
+	$(UGFX)/src/gfx.o \
     $(UGFX)/src/gdisp/fonts.o \
     $(UGFX)/src/gdisp/gdisp.o \
     $(UGFX)/src/gdisp/mcufont/mf_encoding.o \

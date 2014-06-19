@@ -22,13 +22,14 @@
 #include "stm32f429i_discovery_lcd.h"
 #include "stm32_eval_legacy.h"
 
-//#include "gfx.h"
+#include "gfx.h"
 
 static void prvLCDTask( void *pvParameters );
 /*
 static void prvLCDTask2( void *pvParameters );
 */
 QueueHandle_t xLCDQueue;
+TaskHandle_t xHandle;
 
 static void prvLCDTask( void *pvParameters )
 {
@@ -80,7 +81,7 @@ static void prvLCDTask( void *pvParameters )
         LCD_DisplayStringLine( ulLine, ( unsigned char * ) cMsgBuf );
     }
 }
-#if 0
+ 
 void mandelbrot(float x1, float y1, float x2, float y2) {
     unsigned int i,j, width, height;
     uint16_t iter;
@@ -114,6 +115,26 @@ void mandelbrot(float x1, float y1, float x2, float y2) {
     }
 }
 
+void main_mandelbrot()
+{
+	float cx, cy;
+    float zoom = 1.0f;
+
+    gfxInit();
+
+    /* where to zoom in */
+    cx = -0.086f;
+    cy = 0.85f;
+
+    while(TRUE) {
+        mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy);
+
+        zoom *= 0.7f;
+        if(zoom <= 0.00001f)
+            zoom = 1.0f;
+    }
+}
+#if 0
 void drawScreen(void)
 {
 	char *msg = "uGFX";
@@ -204,8 +225,9 @@ void help_command(int, char **);
 void host_command(int, char **);
 void mmtest_command(int, char **);
 void test_command(int, char **);
-//void mandel_command(int, char **);
+void mandel_command(int, char **);
 //void ugfx_command(int, char **);
+void delete_command(int, char **);
 
 #define MKCL(n, d) {.name=#n, .fptr=n ## _command, .desc=d}
 
@@ -218,8 +240,9 @@ cmdlist cl[]={
 //	MKCL(mmtest, "heap memory allocation test"),
 	MKCL(help, "help"),
 	MKCL(test, "test LCD"),
-//	MKCL(mandel, "test mandelbrot"),
+	MKCL(mandel, "test mandelbrot"),
 //	MKCL(ugfx, "test ugfx"),
+	MKCL(delete, "delete task"),
 };
 
 int parse_command(char *str, char *argv[]){
@@ -244,7 +267,7 @@ int parse_command(char *str, char *argv[]){
 }
 
 void ls_command(int n, char *argv[]){
-
+    fio_printf(1, "\r\n");
 }
 
 int filedump(const char *filename){
@@ -268,11 +291,9 @@ int filedump(const char *filename){
 }
 
 void ps_command(int n, char *argv[]){
-/*
 	signed char buf[1024];
 	vTaskList(buf);
 	fio_printf(1, "\r\n%s\r\n", buf);	
-*/
 }
 /*
 void cat_command(int n, char *argv[]){
@@ -320,39 +341,33 @@ void help_command(int n,char *argv[]){
 }
 
 void test_command(int n,char *argv[]){
+    fio_printf(1, "\r\n");
 	/* Create the queue used by the LCD task.  Messages for display on the LCD
 	are received via this queue. */
 	xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
 	/* Start the LCD gatekeeper task - as described in the comments at the top
 	of this file. */	
-	xTaskCreate( prvLCDTask, "LCD", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY, NULL );
+	xTaskCreate( prvLCDTask, "LCD", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY, &xHandle );
+}
+
+void mandel_command(int n,char *argv[]){
+	fio_printf(1, "\r\n");
+	xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+    xTaskCreate( main_mandelbrot, "Mandelbrot", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY - 2, &xHandle );
 }
 #if 0
-void mandel_command(int n,char *argv[]){
-    float cx, cy;
-    float zoom = 1.0f;
-
-    gfxInit();
-
-    /* where to zoom in */
-    cx = -0.086f;
-    cy = 0.85f;
-
-    while(TRUE) {
-        mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy);
-
-        zoom *= 0.7f;
-        if(zoom <= 0.00001f)
-            zoom = 1.0f;
-    }
-}
-
 void ugfx_command(int n,char *argv[]){
 	//xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
 	/* Start the LCD task */
 	xTaskCreate( prvLCDTask2, "LCD", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY, NULL );
 }
 #endif
+void delete_command(int n,char *argv[]){
+	fio_printf(1, "\r\n");
+	vTaskDelay( ( TickType_t ) 0 );
+	vTaskDelete( xHandle );
+}
+
 cmdfunc *do_command(const char *cmd){
 
 	int i;

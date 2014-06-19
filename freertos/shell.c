@@ -82,7 +82,7 @@ static void prvLCDTask( void *pvParameters )
     }
 }
  
-void mandelbrot(float x1, float y1, float x2, float y2) {
+void mandelbrot(float x1, float y1, float x2, float y2, int parameter) {
     unsigned int i,j, width, height;
     uint16_t iter;
     color_t color;
@@ -92,8 +92,8 @@ void mandelbrot(float x1, float y1, float x2, float y2) {
     float sx = x2 - x1;
     const int MAX = 512;
 
-    width = (unsigned int)gdispGetWidth();
-    height = (unsigned int)gdispGetHeight();
+    width = (unsigned int)gdispGetWidth()/2;
+    height = (unsigned int)gdispGetHeight()/2;
     fwidth = width;
     fheight = height;
 
@@ -110,12 +110,13 @@ void mandelbrot(float x1, float y1, float x2, float y2) {
             }
             //color = ((iter << 8) | (iter&0xFF));
             color = RGB2COLOR(iter<<7, iter<<4, iter);
-            gdispDrawPixel(i, j, color);
+            //gdispDrawPixel(i, j, color);
+			gdispDrawPixel(i+120*(parameter-1), j+160*(parameter-1), color);
         }
     }
 }
 
-void main_mandelbrot()
+void main_mandelbrot(void * parameter)
 {
 	float cx, cy;
     float zoom = 1.0f;
@@ -126,10 +127,13 @@ void main_mandelbrot()
     cx = -0.086f;
     cy = 0.85f;
 
-    while(TRUE) {
-        mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy);
+	fio_printf(1, "\r\n%d\r\n", (int)parameter);
 
-        zoom *= 0.7f;
+    while(TRUE) {
+//        mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy);
+		mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy, (int)parameter);
+     
+	   zoom *= 0.7f;
         if(zoom <= 0.00001f)
             zoom = 1.0f;
     }
@@ -228,6 +232,7 @@ void test_command(int, char **);
 void mandel_command(int, char **);
 //void ugfx_command(int, char **);
 void delete_command(int, char **);
+void mandelbrot_command(int, char **);
 
 #define MKCL(n, d) {.name=#n, .fptr=n ## _command, .desc=d}
 
@@ -243,6 +248,7 @@ cmdlist cl[]={
 	MKCL(mandel, "test mandelbrot"),
 //	MKCL(ugfx, "test ugfx"),
 	MKCL(delete, "delete task"),
+	MKCL(mandelbrot, "run mandelbrot task"),
 };
 
 int parse_command(char *str, char *argv[]){
@@ -348,6 +354,15 @@ void test_command(int n,char *argv[]){
 	/* Start the LCD gatekeeper task - as described in the comments at the top
 	of this file. */	
 	xTaskCreate( prvLCDTask, "LCD", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY, &xHandle );
+}
+
+int abc=0;
+void mandelbrot_command(int n,char *argv[]){
+	abc++;
+	xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
+	xTaskCreate(main_mandelbrot,
+                    (signed portCHAR *) "Mandelbrot",
+                    512 /* stack size */, (void *)abc, tskIDLE_PRIORITY , NULL);
 }
 
 void mandel_command(int n,char *argv[]){

@@ -47,6 +47,7 @@ static void prvSetupHardware( void );
  * jitter while the real time kernel is executing.
  */
 extern void vSetupHighFrequencyTimer( void );
+extern void main_mandelbrot();
 
 void USART1_puts(char* s)
 {
@@ -208,6 +209,7 @@ int main()
 	fio_init();
 //	fs_init();
 	prvSetupHardware();
+	vStartLEDFlashTasks( mainFLASH_TASK_PRIORITY );
 	Init_usart();
 //	register_romfs("romfs", &_sromfs);
 	
@@ -223,6 +225,9 @@ int main()
 	xTaskCreate(command_prompt,
 	            (signed portCHAR *) "Command Prompt",
 	            512 /* stack size */, NULL, tskIDLE_PRIORITY + 2, NULL);
+
+//    xTaskCreate( main_mandelbrot, "Mandelbrot", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY - 2, NULL );
+
 	vSetupHighFrequencyTimer();
 	/* Start running the tasks. */
 	vTaskStartScheduler();

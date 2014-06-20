@@ -24,12 +24,10 @@
 
 #include "gfx.h"
 
+static void prvLCDTask2(void *pvParameters);
 static void prvLCDTask( void *pvParameters );
-/*
-static void prvLCDTask2( void *pvParameters );
-*/
 QueueHandle_t xLCDQueue;
-TaskHandle_t xHandle;
+TaskHandle_t xHandle[4];
 
 static void prvLCDTask( void *pvParameters )
 {
@@ -87,16 +85,13 @@ void mandelbrot(float x1, float y1, float x2, float y2, int parameter) {
     uint16_t iter;
     color_t color;
     float fwidth, fheight;
-   
     float sy = y2 - y1;
     float sx = x2 - x1;
     const int MAX = 512;
-
     width = (unsigned int)gdispGetWidth()/2;
     height = (unsigned int)gdispGetHeight()/2;
     fwidth = width;
     fheight = height;
-
     for(i = 0; i < width; i++) {
         for(j = 0; j < height; j++) {
             float cy = j * sy / fheight + y1;
@@ -110,12 +105,18 @@ void mandelbrot(float x1, float y1, float x2, float y2, int parameter) {
             }
             //color = ((iter << 8) | (iter&0xFF));
             color = RGB2COLOR(iter<<7, iter<<4, iter);
-            //gdispDrawPixel(i, j, color);
-			gdispDrawPixel(i+120*(parameter-1), j+160*(parameter-1), color);
+			if(parameter == 1)
+            	gdispDrawPixel(i, j, color);
+			if(parameter == 2)
+                gdispDrawPixel(i, j+160, color);
+			if(parameter == 3)
+                gdispDrawPixel(i+120, j+160, color);
+			if(parameter == 0)
+                gdispDrawPixel(i+120, j, color);
+			//gdispDrawPixel(i+120*(parameter-1), j+160*(parameter-1), color);
         }
     }
 }
-
 void main_mandelbrot(void * parameter)
 {
 	float cx, cy;
@@ -133,13 +134,227 @@ void main_mandelbrot(void * parameter)
     while(TRUE) {
 //        mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy);
 		mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy, (int)parameter);
-     
 	   zoom *= 0.7f;
         if(zoom <= 0.00001f)
             zoom = 1.0f;
     }
 }
+GHandle GW1, GW2, GW3, GW4;
+int gwintest() {
+    uint8_t i;
+    font_t  font1, font2;
+    gfxInit();
+    font1 = gdispOpenFont("UI2");
+    font2 = gdispOpenFont("DejaVu Sans 12");
+    gwinSetDefaultFont(font1);
+    {
+        GWindowInit     wi;
+        gwinClearInit(&wi);
+        wi.show = TRUE;
 
+        wi.x = 0; wi.y = 0; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+		GW1 = gwinConsoleCreate(0, &wi);
+        //wi.y = gdispGetHeight()/2; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight();
+
+        wi.x = 0; wi.y = gdispGetHeight()/2; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW2 = gwinConsoleCreate(0, &wi);
+
+        wi.x = gdispGetWidth()/2; wi.y = gdispGetHeight()/2; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW3 = gwinConsoleCreate(0, &wi);
+
+		wi.x = gdispGetWidth()/2; wi.y = 0; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW4 = gwinConsoleCreate(0, &wi);
+    }
+    xTaskCreate( prvLCDTask2, "LCD2", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY-2, NULL );
+    gwinSetFont(GW1, font2);
+    gwinSetColor(GW1, Green);
+    gwinSetBgColor(GW1, Black);
+    gwinSetColor(GW2, White);
+    gwinSetBgColor(GW2, Blue);
+    gwinSetColor(GW3, Black);
+    gwinSetBgColor(GW3, Red);
+	gwinSetColor(GW4, Red);
+	gwinSetBgColor(GW4, Green);
+    gwinClear(GW1);
+    gwinClear(GW2);
+    gwinClear(GW3);
+	gwinClear(GW4);
+	for(i = 0; i < 10; i++) {
+        gwinPrintf(GW1, "Hello \033buGFX\033B!\n");
+    }
+    for(i = 0; i < 32; i++) {
+        gwinPrintf(GW2, "Message Nr.: \0331\033b%d\033B\033C\n", i+1);
+    }
+    for(i = 0; i < 32; i++) {
+        gwinPrintf(GW3, "Message Nr.: \033u%d\033U\n", i+1);
+        gfxSleepMilliseconds(500);
+    }
+	for(i = 0; i < 32; i++) {
+        gwinPrintf(GW4, "4Message Nr.: \0331\033b%d\033B\033C\n", i+1);
+    }
+    gwinPrintf(GW2, "Making red window \033uinvisible\033U\n");
+    gwinSetVisible(GW3, FALSE);
+    gfxSleepMilliseconds(1000);
+    gwinPrintf(GW2, "Making red window \033uvisible\033U\n");
+    gwinSetVisible(GW3, TRUE);
+    gwinPrintf(GW4, "\033bI'm back!!!\033B\n", i+1);
+    gwinSetVisible(GW4, TRUE);
+    gwinSetVisible(GW1, TRUE);
+    gwinSetVisible(GW2, TRUE);
+    while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+}
+GWindowInit     wi;
+GHandle GW1, GW2;
+int gwintest1() 
+{
+	coord_t     i, j;
+    gfxInit();
+    //gdispClear(White);
+    {
+        //GWindowInit wi;
+        gwinClearInit(&wi);
+        wi.show = TRUE; wi.x = 0; wi.y = 0; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW1 = gwinWindowCreate(0, &wi);
+    }
+    gwinSetColor(GW1, Black);
+    gwinSetBgColor(GW1, Red);
+    gwinClear(GW1);
+    main_mandelbrot(1);
+    while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+#if 0
+    uint8_t i;
+    font_t  font1, font2;
+    gfxInit();
+    font1 = gdispOpenFont("UI2");
+    font2 = gdispOpenFont("DejaVu Sans 12");
+    gwinSetDefaultFont(font1);
+    {
+        //gwinClearInit(&wi);
+        wi.show = TRUE;
+        wi.x = 0; wi.y = 0; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW1 = gwinConsoleCreate(0, &wi);
+	}
+	//gwinSetFont(GW1, font2);
+    //gwinSetColor(GW1, Green);
+    gwinSetBgColor(GW1, Black);
+    gwinClear(GW1);
+
+	//for(i = 0; i < 320000; i++) {
+        //gwinPrintf(GW1, "gw1 : \0331\033b%d\033B\033C\n", i+1);
+        //gfxSleepMilliseconds(2000);
+	//}
+	main_mandelbrot(1);
+
+	while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+#endif
+}
+int gwintest2()
+{
+	coord_t     i, j;
+    gfxInit();
+    //gdispClear(White);
+    {
+        //GWindowInit wi;
+        gwinClearInit(&wi);
+        wi.show = TRUE; wi.x = 0; wi.y = gdispGetHeight()/2; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW2 = gwinWindowCreate(0, &wi);
+    }
+    gwinSetColor(GW2, Black);
+    gwinSetBgColor(GW2, Green);
+    gwinClear(GW2);
+    main_mandelbrot(2);
+    while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+#if 0
+    uint8_t i;
+    font_t  font1, font2;
+    gfxInit();
+    font1 = gdispOpenFont("UI2");
+    font2 = gdispOpenFont("DejaVu Sans 12");
+    gwinSetDefaultFont(font1);
+    {
+        //gwinClearInit(&wi);
+        wi.show = TRUE;
+        wi.x = 0; wi.y = gdispGetHeight()/2; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW2 = gwinConsoleCreate(0, &wi);
+    }
+    gwinSetFont(GW2, font2);
+    gwinSetColor(GW2, Green);
+    gwinSetBgColor(GW2, Black);
+    gwinClear(GW2);
+    //for(i = 0; i < 320000; i++) {
+        //gwinPrintf(GW2, "gw1 : \0331\033b%d\033B\033C\n", i+1);
+    //    gfxSleepMilliseconds(2000);
+    //}
+main_mandelbrot(2);
+    while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+#endif
+}
+int gwintest3()
+{
+    uint8_t i;
+    font_t  font1, font2;
+    gfxInit();
+    font1 = gdispOpenFont("UI2");
+    font2 = gdispOpenFont("DejaVu Sans 12");
+    gwinSetDefaultFont(font1);
+    {
+        //gwinClearInit(&wi);
+        wi.show = TRUE;
+        wi.x = gdispGetWidth()/2; wi.y = gdispGetHeight()/2; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW3 = gwinConsoleCreate(0, &wi);
+    }
+    gwinSetFont(GW3, font2);
+    gwinSetColor(GW3, Green);
+    gwinSetBgColor(GW3, Black);
+    gwinClear(GW3);
+    //for(i = 0; i < 320000; i++) {
+        //gwinPrintf(GW3, "gw1 : \0331\033b%d\033B\033C\n", i+1);
+    //    gfxSleepMilliseconds(2000);
+    //}
+	main_mandelbrot(3);
+    while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+}
+int gwintest4()
+{
+    uint8_t i;
+    font_t  font1, font2;
+    gfxInit();
+    font1 = gdispOpenFont("UI2");
+    font2 = gdispOpenFont("DejaVu Sans 12");
+    gwinSetDefaultFont(font1);
+    {
+        //gwinClearInit(&wi);
+        wi.show = TRUE;
+        wi.x = gdispGetWidth()/2; wi.y = 0; wi.width = gdispGetWidth()/2; wi.height = gdispGetHeight()/2;
+        GW4 = gwinConsoleCreate(0, &wi);
+    }
+    gwinSetFont(GW4, font2);
+    gwinSetColor(GW4, Green);
+    gwinSetBgColor(GW4, Black);
+    gwinClear(GW4);
+    //for(i = 0; i < 320000; i++) {
+        //gwinPrintf(GW4, "gw1 : \0331\033b%d\033B\033C\n", i+1);
+    //    gfxSleepMilliseconds(2000);
+    //}
+	main_mandelbrot(4);
+    while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+}
+
+#if 0
 GHandle GW1, GW2;
 int gwintest() 
 {
@@ -169,18 +384,29 @@ int gwintest()
         gfxSleepMilliseconds(500);
     }
 }
+#endif
+
+
+
 GEventMouse     ev;
 #define COLOR_SIZE  20
 #define PEN_SIZE    20
-#define POFFSET     3
+#define POFFSET     0
 #define COLOR_BOX(a)        (ev.x >= a && ev.x <= a + COLOR_SIZE)
 #define PEN_BOX(a)          (ev.y >= a && ev.y <= a + COLOR_SIZE)
 #define GET_COLOR(a)        (COLOR_BOX(a * COLOR_SIZE + POFFSET))
 #define GET_PEN(a)          (PEN_BOX(a * 2 * PEN_SIZE + POFFSET))
 #define DRAW_COLOR(a)       (a * COLOR_SIZE + POFFSET)
-#define DRAW_PEN(a)         (a * 2 * PEN_SIZE + POFFSET)
-#define DRAW_AREA(x, y)     (x >= PEN_SIZE + POFFSET + 3 && x <= gdispGetWidth() && \
-                             y >= COLOR_SIZE + POFFSET + 3 && y <= gdispGetHeight())
+#define DRAW_PEN(a)         (a * 1 * PEN_SIZE + POFFSET)
+#define DRAW_AREA(x, y, n)  ((n) == 1)?((x) >= PEN_SIZE + POFFSET && (x) <= gdispGetWidth() - 120  && \
+                             (y) >= COLOR_SIZE + POFFSET && (y) <= gdispGetHeight() - 160) : \
+							((n) == 2)?((x) >= PEN_SIZE + POFFSET && (x) <= gdispGetWidth() - 120  && \
+                             (y) >= COLOR_SIZE + POFFSET + 160 && (y) <= gdispGetHeight()) : \
+							((n) == 3)?((x) >= PEN_SIZE + POFFSET + 120 && (x) <= gdispGetWidth() && \
+                             (y) >= COLOR_SIZE + POFFSET + 160 && (y) <= gdispGetHeight()) : \
+							((x) >= PEN_SIZE + POFFSET + 120 && (x) <= gdispGetWidth() && \
+                             (y) >= COLOR_SIZE + POFFSET && (y) <= gdispGetHeight() - 160)
+						 
 #define mainFLASH_TASK_PRIORITY             ( tskIDLE_PRIORITY + 1 )
 #define mainLCD_TASK_PRIORITY               ( tskIDLE_PRIORITY + 2 )
 void drawScreen(void)
@@ -189,35 +415,46 @@ void drawScreen(void)
     font_t      font1, font2;
     font1 = gdispOpenFont("DejaVuSans24*");
     font2 = gdispOpenFont("DejaVuSans12*");
-    gdispClear(White);
+    //gdispClear(White);
     gdispDrawString(gdispGetWidth()-gdispGetStringWidth(msg, font1)-3, 3, msg, font1, Black);
-    gdispFillArea(0 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);    /* Black */
+#if 0
+	gdispFillArea(0 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);    /* Black */
     gdispFillArea(1 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Red);      /* Red */
     gdispFillArea(2 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Yellow);   /* Yellow */
     gdispFillArea(3 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Green);    /* Green */
     gdispFillArea(4 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Blue);     /* Blue */
     gdispDrawBox (5 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);    /* White */
-    gdispFillStringBox(POFFSET * 2, DRAW_PEN(1), PEN_SIZE, PEN_SIZE, "1", font2, White, Black, justifyCenter);
+	gdispFillStringBox(POFFSET * 2, DRAW_PEN(1), PEN_SIZE, PEN_SIZE, "1", font2, White, Black, justifyCenter);
     gdispFillStringBox(POFFSET * 2, DRAW_PEN(2), PEN_SIZE, PEN_SIZE, "2", font2, White, Black, justifyCenter);
     gdispFillStringBox(POFFSET * 2, DRAW_PEN(3), PEN_SIZE, PEN_SIZE, "3", font2, White, Black, justifyCenter);
     gdispFillStringBox(POFFSET * 2, DRAW_PEN(4), PEN_SIZE, PEN_SIZE, "4", font2, White, Black, justifyCenter);
     gdispFillStringBox(POFFSET * 2, DRAW_PEN(5), PEN_SIZE, PEN_SIZE, "5", font2, White, Black, justifyCenter);
-    gdispCloseFont(font1);
+#endif
+	gdispCloseFont(font1);
     gdispCloseFont(font2);
 }
 static void prvLCDTask2(void *pvParameters)
 {
     color_t color = Black;
-    uint16_t pen = 0;
+    uint16_t pen = 5;
     ( void ) pvParameters;
     gfxInit();
+	if((int)pvParameters == 1)
+		gdispFillArea(0,0,120,160,White);
+	if((int)pvParameters == 2)
+        gdispFillArea(0,160,120,160,White);
+	if((int)pvParameters == 3)
+        gdispFillArea(120,160,120,160,White);
+	if((int)pvParameters == 0)
+        gdispFillArea(120,0,120,160,White);
+	
     ginputGetMouse(9999);
-
-    drawScreen();
+	//drawScreen();
     while (TRUE) {
         ginputGetMouseStatus(0, &ev);
         if (!(ev.current_buttons & GINPUT_MOUSE_BTN_LEFT))
             continue;
+/*
         if(ev.y >= POFFSET && ev.y <= COLOR_SIZE) {
                  if(GET_COLOR(0))   color = Black;
             else if(GET_COLOR(1))   color = Red;
@@ -231,7 +468,21 @@ static void prvLCDTask2(void *pvParameters)
             else if(GET_PEN(3))     pen = 2;
             else if(GET_PEN(4))     pen = 3;
             else if(GET_PEN(5))     pen = 4;
-		} else if(DRAW_AREA(ev.x, ev.y)) {
+		}
+*/
+//		fio_printf(1, "%d\r\n", pvParameters);
+
+
+
+/*
+		if(n == 1)?(x >= PEN_SIZE + POFFSET && x <= gdispGetWidth() - 120  && y >= COLOR_SIZE + POFFSET && y <= gdispGetHeight() - 160) :
+        if(n == 2)?(x >= PEN_SIZE + POFFSET && x <= gdispGetWidth() - 120  && y >= COLOR_SIZE + POFFSET + 160 && y <= gdispGetHeight()) : 
+        if(n == 3)?(x >= PEN_SIZE + POFFSET + 120 && x <= gdispGetWidth() && y >= COLOR_SIZE + POFFSET + 160 && y <= gdispGetHeight()) : 
+        if(x >= PEN_SIZE + POFFSET + 120 && x <= gdispGetWidth() && y >= COLOR_SIZE + POFFSET && y <= gdispGetHeight() - 160);
+*/
+
+
+		if(DRAW_AREA(ev.x, ev.y, (int)pvParameters)) {
             if(pen == 0)
                 gdispDrawPixel(ev.x, ev.y, color);
             else
@@ -256,10 +507,14 @@ void host_command(int, char **);
 void mmtest_command(int, char **);
 void test_command(int, char **);
 void mandel_command(int, char **);
-//void ugfx_command(int, char **);
+void ugfx_command(int, char **);
 void delete_command(int, char **);
 void mandelbrot_command(int, char **);
 void gwin_command(int, char **);
+void gwin1_command(int, char **);
+void gwin2_command(int, char **);
+void gwin3_command(int, char **);
+void gwin4_command(int, char **);
 void notepad_command(int, char **);
 
 #define MKCL(n, d) {.name=#n, .fptr=n ## _command, .desc=d}
@@ -278,6 +533,11 @@ cmdlist cl[]={
 	MKCL(delete, "delete task"),
 	MKCL(mandelbrot, "run mandelbrot task"),
 	MKCL(notepad,"notepad"),
+	MKCL(gwin,"gwin"),
+    MKCL(gwin1,"gwin1"),
+    MKCL(gwin2,"gwin2"),
+    MKCL(gwin3,"gwin3"),
+    MKCL(gwin4,"gwin4"),
 };
 
 int parse_command(char *str, char *argv[]){
@@ -400,10 +660,42 @@ void mandel_command(int n,char *argv[]){
 	xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
     xTaskCreate( main_mandelbrot, "Mandelbrot", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY - 2, &xHandle );
 }
+
+int sector = 0;
 void notepad_command(int n,char *argv[])
 {
     fio_printf(1, "\r\n");
-    xTaskCreate( prvLCDTask2, "LCD2", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY-2, NULL );
+	sector++;
+	sector %= 4;
+    xTaskCreate(prvLCDTask2, "notepad", configMINIMAL_STACK_SIZE * 2, (void *)sector, mainLCD_TASK_PRIORITY-2, &xHandle[sector] );
+}
+void gwin_command(int n,char *argv[])
+{
+    fio_printf(1, "\r\n");
+	sector++;
+    sector %= 4;
+    xTaskCreate(main_mandelbrot, "gwin", configMINIMAL_STACK_SIZE * 2, (void *)sector, mainLCD_TASK_PRIORITY-2, &xHandle[sector] );
+}
+void gwin1_command(int n,char *argv[])
+{
+    fio_printf(1, "\r\n");
+    sector = (sector++)%4;
+    xTaskCreate(main_mandelbrot, "gwin1", configMINIMAL_STACK_SIZE * 2, (void *)1, mainLCD_TASK_PRIORITY-2, NULL );
+}
+void gwin2_command(int n,char *argv[])
+{
+    fio_printf(1, "\r\n");
+    xTaskCreate(prvLCDTask2, "gwin2", configMINIMAL_STACK_SIZE * 2, (void *)2, mainLCD_TASK_PRIORITY-2, NULL );
+}
+void gwin3_command(int n,char *argv[])
+{
+    fio_printf(1, "\r\n");
+    xTaskCreate(main_mandelbrot, "gwin3", configMINIMAL_STACK_SIZE * 2, (void *)3, mainLCD_TASK_PRIORITY-2, NULL );
+}
+void gwin4_command(int n,char *argv[])
+{
+    fio_printf(1, "\r\n");
+    xTaskCreate(main_mandelbrot, "gwin4", configMINIMAL_STACK_SIZE * 2, (void *)4, mainLCD_TASK_PRIORITY-2, NULL );
 }
 
 #if 0
@@ -415,8 +707,18 @@ void ugfx_command(int n,char *argv[]){
 #endif
 void delete_command(int n,char *argv[]){
 	fio_printf(1, "\r\n");
+	int nu = atoi(argv[1]);
+	fio_printf(1,"%d", nu);
 	vTaskDelay( ( TickType_t ) 0 );
-	vTaskDelete( xHandle );
+	vTaskDelete( xHandle[nu] );
+	if(nu == 1)
+        gdispFillArea(0,0,120,160,Black);
+    if(nu == 2)
+        gdispFillArea(0,160,120,160, Black);
+    if(nu == 3)
+        gdispFillArea(120,160,120,160, Black);
+    if(nu == 0)
+        gdispFillArea(120,0,120,160, Black);
 }
 
 cmdfunc *do_command(const char *cmd){

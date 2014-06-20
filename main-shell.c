@@ -38,7 +38,7 @@
 
 #include "fio.h"
 #include "shell.h"
-//#include "gfx.h"
+#include "gfx.h"
 
 static void prvSetupHardware( void );
 
@@ -219,7 +219,6 @@ int main()
 	/* Add for serial input 
 	 * Reference: www.freertos.org/a00116.html */
 	serial_rx_queue = xQueueCreate(1, sizeof(char));
-
 
 	/* Create a task to output text read from romfs. */
 	xTaskCreate(command_prompt,

@@ -39,6 +39,8 @@
 /* GFX sub-systems to turn on */
 #define GFX_USE_GDISP			TRUE
 #define GFX_USE_GWIN			TRUE
+
+
 #if GFX_NOTEPAD_DEMO
 #define GFX_USE_GEVENT			TRUE
 #define GFX_USE_GINPUT			TRUE
@@ -80,5 +82,27 @@
 /* Empty defines */
 #define vTraceSetMutexName(a, b)
 #define vTraceSetSemaphoreName(a, b)
+
+
+
+
+//test
+#define GDISP_NEED_CLIP         TRUE
+#define GDISP_INCLUDE_FONT_UI2  TRUE
+#define GDISP_INCLUDE_FONT_DEJAVUSANS12 TRUE
+#define GWIN_NEED_WINDOWMANAGER TRUE
+#define GWIN_NEED_CONSOLE       TRUE
+#define GWIN_CONSOLE_ESCSEQ     TRUE
+#define GWIN_CONSOLE_USE_HISTORY    TRUE
+#define GWIN_CONSOLE_HISTORY_AVERAGING  TRUE
+#define GWIN_CONSOLE_HISTORY_ATCREATE   TRUE
+
+
+#define GFX_USE_GQUEUE                               TRUE
+#define GQUEUE_NEED_ASYNC                            TRUE
+#define GQUEUE_NEED_GSYNC                            TRUE
+#define GQUEUE_NEED_FSYNC                            FALSE
+#define GQUEUE_NEED_BUFFERS                          TRUE
+
 
 #endif /* _GFXCONF_H */

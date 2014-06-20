@@ -353,7 +353,9 @@ SHELL_OBJS += \
     $(UGFX)/src/gtimer/gtimer.o \
     $(UGFX)/src/gwin/console.o \
     $(UGFX)/src/gwin/gwin.o \
-    $(UGFX)/src/gwin/gwm.o
+    $(UGFX)/src/gwin/gwm.o \
+	$(UGFX)/src/gqueue/gqueue.o \
+	$(UGFX)/src/gdisp/mcufont/mf_bwfont.o 
 
 #New
 PLUS = ./freertos

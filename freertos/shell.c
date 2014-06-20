@@ -128,6 +128,7 @@ void main_mandelbrot(void * parameter)
     cy = 0.85f;
 
 	fio_printf(1, "\r\n%d\r\n", (int)parameter);
+    fio_printf(1, "\r\n");
 
     while(TRUE) {
 //        mandelbrot(-2.0f*zoom+cx, -1.5f*zoom+cy, 2.0f*zoom+cx, 1.5f*zoom+cy);
@@ -138,82 +139,107 @@ void main_mandelbrot(void * parameter)
             zoom = 1.0f;
     }
 }
-#if 0
+
+GHandle GW1, GW2;
+int gwintest() 
+{
+    coord_t     i, j;
+    gfxInit();
+    gdispClear(White);
+	{
+        GWindowInit wi;
+        gwinClearInit(&wi);
+        wi.show = TRUE; wi.x = 20; wi.y = 10; wi.width = 200; wi.height = 150;
+        GW1 = gwinWindowCreate(0, &wi);
+        wi.show = TRUE; wi.x = 50; wi.y = 190; wi.width = 150; wi.height = 100;
+        GW2 = gwinWindowCreate(0, &wi);
+    }
+	gwinSetColor(GW1, Black);
+    gwinSetBgColor(GW1, White);
+    gwinSetColor(GW2, White);
+    gwinSetBgColor(GW2, Blue);
+    gwinClear(GW1);
+    gwinClear(GW2);
+    gwinDrawLine(GW1, 5, 30, 150, 110);
+    for(i = 5, j = 0; i < 200 && j < 150; i += 3, j += i/20)
+            gwinDrawPixel(GW1, i, j);
+    gwinFillCircle(GW1, 20, 20, 15);
+    gwinFillCircle(GW2, 20, 20, 15);
+	while(TRUE) {
+        gfxSleepMilliseconds(500);
+    }
+}
+GEventMouse     ev;
+#define COLOR_SIZE  20
+#define PEN_SIZE    20
+#define POFFSET     3
+#define COLOR_BOX(a)        (ev.x >= a && ev.x <= a + COLOR_SIZE)
+#define PEN_BOX(a)          (ev.y >= a && ev.y <= a + COLOR_SIZE)
+#define GET_COLOR(a)        (COLOR_BOX(a * COLOR_SIZE + POFFSET))
+#define GET_PEN(a)          (PEN_BOX(a * 2 * PEN_SIZE + POFFSET))
+#define DRAW_COLOR(a)       (a * COLOR_SIZE + POFFSET)
+#define DRAW_PEN(a)         (a * 2 * PEN_SIZE + POFFSET)
+#define DRAW_AREA(x, y)     (x >= PEN_SIZE + POFFSET + 3 && x <= gdispGetWidth() && \
+                             y >= COLOR_SIZE + POFFSET + 3 && y <= gdispGetHeight())
+#define mainFLASH_TASK_PRIORITY             ( tskIDLE_PRIORITY + 1 )
+#define mainLCD_TASK_PRIORITY               ( tskIDLE_PRIORITY + 2 )
 void drawScreen(void)
 {
-	char *msg = "uGFX";
-	font_t		font1, font2;
-
-	font1 = gdispOpenFont("DejaVuSans24*");
-	font2 = gdispOpenFont("DejaVuSans12*");
-
-	gdispClear(White);
-	gdispDrawString(gdispGetWidth()-gdispGetStringWidth(msg, font1)-3, 3, msg, font1, Black);
-
-	/* colors */
-	gdispFillArea(0 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);	/* Black */
-	gdispFillArea(1 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Red);		/* Red */
-	gdispFillArea(2 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Yellow);	/* Yellow */
-	gdispFillArea(3 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Green);	/* Green */
-	gdispFillArea(4 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Blue);		/* Blue */
-	gdispDrawBox (5 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);	/* White */
-
-	/* pens */
-	gdispFillStringBox(POFFSET * 2, DRAW_PEN(1), PEN_SIZE, PEN_SIZE, "1", font2, White, Black, justifyCenter);
-	gdispFillStringBox(POFFSET * 2, DRAW_PEN(2), PEN_SIZE, PEN_SIZE, "2", font2, White, Black, justifyCenter);
-	gdispFillStringBox(POFFSET * 2, DRAW_PEN(3), PEN_SIZE, PEN_SIZE, "3", font2, White, Black, justifyCenter);
-	gdispFillStringBox(POFFSET * 2, DRAW_PEN(4), PEN_SIZE, PEN_SIZE, "4", font2, White, Black, justifyCenter);
-	gdispFillStringBox(POFFSET * 2, DRAW_PEN(5), PEN_SIZE, PEN_SIZE, "5", font2, White, Black, justifyCenter);
-
-	gdispCloseFont(font1);
-	gdispCloseFont(font2);
+    char *msg = "uGFX";
+    font_t      font1, font2;
+    font1 = gdispOpenFont("DejaVuSans24*");
+    font2 = gdispOpenFont("DejaVuSans12*");
+    gdispClear(White);
+    gdispDrawString(gdispGetWidth()-gdispGetStringWidth(msg, font1)-3, 3, msg, font1, Black);
+    gdispFillArea(0 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);    /* Black */
+    gdispFillArea(1 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Red);      /* Red */
+    gdispFillArea(2 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Yellow);   /* Yellow */
+    gdispFillArea(3 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Green);    /* Green */
+    gdispFillArea(4 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Blue);     /* Blue */
+    gdispDrawBox (5 * COLOR_SIZE + 3, 3, COLOR_SIZE, COLOR_SIZE, Black);    /* White */
+    gdispFillStringBox(POFFSET * 2, DRAW_PEN(1), PEN_SIZE, PEN_SIZE, "1", font2, White, Black, justifyCenter);
+    gdispFillStringBox(POFFSET * 2, DRAW_PEN(2), PEN_SIZE, PEN_SIZE, "2", font2, White, Black, justifyCenter);
+    gdispFillStringBox(POFFSET * 2, DRAW_PEN(3), PEN_SIZE, PEN_SIZE, "3", font2, White, Black, justifyCenter);
+    gdispFillStringBox(POFFSET * 2, DRAW_PEN(4), PEN_SIZE, PEN_SIZE, "4", font2, White, Black, justifyCenter);
+    gdispFillStringBox(POFFSET * 2, DRAW_PEN(5), PEN_SIZE, PEN_SIZE, "5", font2, White, Black, justifyCenter);
+    gdispCloseFont(font1);
+    gdispCloseFont(font2);
 }
-
-/* GFX notepad demo */
 static void prvLCDTask2(void *pvParameters)
 {
     color_t color = Black;
     uint16_t pen = 0;
-
     ( void ) pvParameters;
-
     gfxInit();
-    ginputGetMouse(0);
+    ginputGetMouse(9999);
 
     drawScreen();
-
     while (TRUE) {
         ginputGetMouseStatus(0, &ev);
         if (!(ev.current_buttons & GINPUT_MOUSE_BTN_LEFT))
             continue;
-
-        /* inside color box ? */
         if(ev.y >= POFFSET && ev.y <= COLOR_SIZE) {
                  if(GET_COLOR(0))   color = Black;
-			else if(GET_COLOR(1))   color = Red;
+            else if(GET_COLOR(1))   color = Red;
             else if(GET_COLOR(2))   color = Yellow;
             else if(GET_COLOR(3))   color = Green;
             else if(GET_COLOR(4))   color = Blue;
             else if(GET_COLOR(5))   color = White;
-
-        /* inside pen box ? */
         } else if(ev.x >= POFFSET && ev.x <= PEN_SIZE) {
                  if(GET_PEN(1))     pen = 0;
             else if(GET_PEN(2))     pen = 1;
             else if(GET_PEN(3))     pen = 2;
             else if(GET_PEN(4))     pen = 3;
             else if(GET_PEN(5))     pen = 4;
-
-        /* inside drawing area ? */
-        } else if(DRAW_AREA(ev.x, ev.y)) {
+		} else if(DRAW_AREA(ev.x, ev.y)) {
             if(pen == 0)
                 gdispDrawPixel(ev.x, ev.y, color);
             else
                 gdispFillCircle(ev.x, ev.y, pen, color);
         }
-	}
+    }
 }
-#endif
+
 typedef struct {
 	const char *name;
 	cmdfunc *fptr;
@@ -233,6 +259,8 @@ void mandel_command(int, char **);
 //void ugfx_command(int, char **);
 void delete_command(int, char **);
 void mandelbrot_command(int, char **);
+void gwin_command(int, char **);
+void notepad_command(int, char **);
 
 #define MKCL(n, d) {.name=#n, .fptr=n ## _command, .desc=d}
 
@@ -249,6 +277,7 @@ cmdlist cl[]={
 //	MKCL(ugfx, "test ugfx"),
 	MKCL(delete, "delete task"),
 	MKCL(mandelbrot, "run mandelbrot task"),
+	MKCL(notepad,"notepad"),
 };
 
 int parse_command(char *str, char *argv[]){
@@ -359,6 +388,7 @@ void test_command(int n,char *argv[]){
 int abc=0;
 void mandelbrot_command(int n,char *argv[]){
 	abc++;
+    fio_printf(1, "\r\n");
 	xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
 	xTaskCreate(main_mandelbrot,
                     (signed portCHAR *) "Mandelbrot",
@@ -370,6 +400,12 @@ void mandel_command(int n,char *argv[]){
 	xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );
     xTaskCreate( main_mandelbrot, "Mandelbrot", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY - 2, &xHandle );
 }
+void notepad_command(int n,char *argv[])
+{
+    fio_printf(1, "\r\n");
+    xTaskCreate( prvLCDTask2, "LCD2", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY-2, NULL );
+}
+
 #if 0
 void ugfx_command(int n,char *argv[]){
 	//xLCDQueue = xQueueCreate( mainQUEUE_SIZE, sizeof( char * ) );

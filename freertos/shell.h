@@ -7,25 +7,7 @@
 
 /* Hardware and starter kit includes. */
 #include "stm32f4xx.h"
-#if 0
-/* uGFX includes. */
-#include "gfx.h"
 
-#define COLOR_SIZE	20
-#define PEN_SIZE	20
-#define POFFSET		3
-
-GEventMouse     ev;
-
-#define COLOR_BOX(a)		(ev.x >= a && ev.x <= a + COLOR_SIZE)
-#define PEN_BOX(a)			(ev.y >= a && ev.y <= a + COLOR_SIZE)
-#define GET_COLOR(a)		(COLOR_BOX(a * COLOR_SIZE + POFFSET))
-#define GET_PEN(a)			(PEN_BOX(a * 2 * PEN_SIZE + POFFSET))
-#define DRAW_COLOR(a)		(a * COLOR_SIZE + POFFSET)
-#define DRAW_PEN(a)			(a * 2 * PEN_SIZE + POFFSET)
-#define DRAW_AREA(x, y)		(x >= PEN_SIZE + POFFSET + 3 && x <= gdispGetWidth() && \
-							 y >= COLOR_SIZE + POFFSET + 3 && y <= gdispGetHeight())
-#endif
 /* The time between cycles of the 'check' functionality (defined within the
 tick hook. */
 #define mainCHECK_DELAY                     ( ( TickType_t ) 5000 / portTICK_PERIOD_MS )

@@ -39,42 +39,35 @@
 /* GFX sub-systems to turn on */
 #define GFX_USE_GDISP			TRUE
 #define GFX_USE_GWIN			TRUE
-
-
-#if GFX_NOTEPAD_DEMO
 #define GFX_USE_GEVENT			TRUE
 #define GFX_USE_GINPUT			TRUE
 #define GFX_USE_GTIMER			TRUE
-#else
-#define GFX_USE_GEVENT			FALSE
-#define GFX_USE_GINPUT			FALSE
-#define GFX_USE_GTIMER			FALSE
-#endif
+#define GFX_USE_GQUEUE          TRUE
 
 /* Features for the GDISP sub-system. */
 #define GDISP_NEED_STARTUP_LOGO	FALSE
 #define GDISP_NEED_TEXT			TRUE
 #define GDISP_NEED_MULTITHREAD	TRUE
 #define GDISP_NEED_CIRCLE		TRUE
-
-#ifdef GFX_MANDELBROT_DEMO
 #define GDISP_NEED_VALIDATION   TRUE	
-#else
-#define GDISP_NEED_VALIDATION   FALSE
-#endif
-
-#ifdef GFX_BENCHMARKS_DEMO
-#define GDISP_NEED_CLIP                 FALSE
 #define GDISP_NEED_CONTROL              TRUE
-#else
 #define GDISP_NEED_CLIP			TRUE
-#endif
+#define GDISP_NEED_IMAGE            TRUE
+#define GDISP_NEED_IMAGE_GIF        TRUE
 
 /* Builtin Fonts */
 #define GDISP_INCLUDE_FONT_UI2			TRUE
+#define GDISP_INCLUDE_FONT_DEJAVUSANS12 TRUE
 
 /* Features for the GWIN sub-system. */
 #define GWIN_NEED_CONSOLE		TRUE
+#define GWIN_NEED_BUTTON        TRUE
+#define GWIN_NEED_SLIDER        TRUE
+#define GWIN_NEED_WINDOWMANAGER TRUE
+#define GWIN_CONSOLE_ESCSEQ     TRUE
+#define GWIN_CONSOLE_USE_HISTORY    TRUE
+#define GWIN_CONSOLE_HISTORY_AVERAGING  TRUE
+#define GWIN_CONSOLE_HISTORY_ATCREATE   TRUE
 
 /* Features for the GINPUT sub-system. */
 #define GINPUT_NEED_MOUSE		TRUE
@@ -83,26 +76,10 @@
 #define vTraceSetMutexName(a, b)
 #define vTraceSetSemaphoreName(a, b)
 
-
-
-
 //test
-#define GDISP_NEED_CLIP         TRUE
-#define GDISP_INCLUDE_FONT_UI2  TRUE
-#define GDISP_INCLUDE_FONT_DEJAVUSANS12 TRUE
-#define GWIN_NEED_WINDOWMANAGER TRUE
-#define GWIN_NEED_CONSOLE       TRUE
-#define GWIN_CONSOLE_ESCSEQ     TRUE
-#define GWIN_CONSOLE_USE_HISTORY    TRUE
-#define GWIN_CONSOLE_HISTORY_AVERAGING  TRUE
-#define GWIN_CONSOLE_HISTORY_ATCREATE   TRUE
-
-
-#define GFX_USE_GQUEUE                               TRUE
 #define GQUEUE_NEED_ASYNC                            TRUE
 #define GQUEUE_NEED_GSYNC                            TRUE
 #define GQUEUE_NEED_FSYNC                            FALSE
 #define GQUEUE_NEED_BUFFERS                          TRUE
-
 
 #endif /* _GFXCONF_H */

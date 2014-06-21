@@ -26,6 +26,8 @@
 
 static void prvLCDTask2(void *pvParameters);
 static void prvLCDTask( void *pvParameters );
+extern void main_bubble();
+extern void main_notepad2();
 QueueHandle_t xLCDQueue;
 TaskHandle_t xHandle[4];
 
@@ -516,28 +518,30 @@ void gwin2_command(int, char **);
 void gwin3_command(int, char **);
 void gwin4_command(int, char **);
 void notepad_command(int, char **);
+void bubble_command(int, char **);
 
 #define MKCL(n, d) {.name=#n, .fptr=n ## _command, .desc=d}
 
 cmdlist cl[]={
 	MKCL(ls, "List directory"),
 	MKCL(man, "Show the manual of the command"),
-//	MKCL(cat, "Concatenate files and print on the stdout"),
+	MKCL(cat, "Concatenate files and print on the stdout"),
 	MKCL(ps, "Report a snapshot of the current processes"),
-//	MKCL(host, "Run command on host"),
-//	MKCL(mmtest, "heap memory allocation test"),
+	MKCL(host, "Run command on host"),
+	MKCL(mmtest, "heap memory allocation test"),
 	MKCL(help, "help"),
 	MKCL(test, "test LCD"),
 	MKCL(mandel, "test mandelbrot"),
 //	MKCL(ugfx, "test ugfx"),
 	MKCL(delete, "delete task"),
 	MKCL(mandelbrot, "run mandelbrot task"),
-	MKCL(notepad,"notepad"),
+	MKCL(notepad,"run notepad"),
 	MKCL(gwin,"gwin"),
     MKCL(gwin1,"gwin1"),
     MKCL(gwin2,"gwin2"),
     MKCL(gwin3,"gwin3"),
     MKCL(gwin4,"gwin4"),
+	MKCL(bubble,"run bubble"),
 };
 
 int parse_command(char *str, char *argv[]){
@@ -567,7 +571,7 @@ void ls_command(int n, char *argv[]){
 
 int filedump(const char *filename){
 	char buf[128];
-/*
+
 	int fd=fs_open(filename, 0, O_RDONLY);
 
 	if(fd==OPENFAIL)
@@ -582,7 +586,7 @@ int filedump(const char *filename){
 
 	fio_close(fd);
 	return 1;
-*/
+
 }
 
 void ps_command(int n, char *argv[]){
@@ -590,7 +594,7 @@ void ps_command(int n, char *argv[]){
 	vTaskList(buf);
 	fio_printf(1, "\r\n%s\r\n", buf);	
 }
-/*
+
 void cat_command(int n, char *argv[]){
 	if(n==1){
 		fio_printf(2, "\r\nUsage: cat <filename>\r\n");
@@ -600,7 +604,7 @@ void cat_command(int n, char *argv[]){
 	if(!filedump(argv[1]))
 		fio_printf(2, "\r\n%s no such file or directory.\r\n", argv[1]);
 }
-*/
+
 void man_command(int n, char *argv[]){
 	if(n==1){
 		fio_printf(2, "\r\nUsage: man <command>\r\n");
@@ -613,7 +617,7 @@ void man_command(int n, char *argv[]){
 	if(!filedump(buf))
 		fio_printf(2, "\r\nManual not available.\r\n");
 }
-/*
+
 void host_command(int n, char *argv[]){
 	if(n>1){
 		int len=strlen(argv[1]), rnt;
@@ -626,7 +630,7 @@ void host_command(int n, char *argv[]){
 	}else
 		fio_printf(2, "\r\nUsage: host 'command'\r\n");
 }
-*/
+
 void help_command(int n,char *argv[]){
 	int i;
 	fio_printf(1, "\r\n");
@@ -705,6 +709,12 @@ void ugfx_command(int n,char *argv[]){
 	xTaskCreate( prvLCDTask2, "LCD", configMINIMAL_STACK_SIZE * 2, NULL, mainLCD_TASK_PRIORITY, NULL );
 }
 #endif
+void bubble_command(int n,char *argv[])
+{
+    fio_printf(1, "\r\n");
+    xTaskCreate(main_bubble, "bubble", configMINIMAL_STACK_SIZE * 2, 4, mainLCD_TASK_PRIORITY-2, NULL );
+}
+
 void delete_command(int n,char *argv[]){
 	fio_printf(1, "\r\n");
 	int nu = atoi(argv[1]);

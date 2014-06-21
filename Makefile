@@ -355,7 +355,11 @@ SHELL_OBJS += \
     $(UGFX)/src/gwin/gwin.o \
     $(UGFX)/src/gwin/gwm.o \
 	$(UGFX)/src/gqueue/gqueue.o \
-	$(UGFX)/src/gdisp/mcufont/mf_bwfont.o 
+	$(UGFX)/src/gdisp/mcufont/mf_bwfont.o \
+	$(UGFX)/src/gwin/gwidget.o \
+	$(UGFX)/src/gdisp/image.o \
+	$(UGFX)/src/gdisp/image_gif.o \
+	$(UGFX)/src/gfile/gfile.o
 
 #New
 PLUS = ./freertos
@@ -364,14 +368,15 @@ SHELL_OBJS += \
     $(PLUS)/shell.o \
     $(PLUS)/fio.o \
     $(PLUS)/clib.o \
-#	$(PLUS)/stm32_p103.o \
-#	$(PLUS)/romfs.o \
+	$(PLUS)/bubble.o \
 	$(PLUS)/hash-djb2.o \
 	$(PLUS)/filesystem.o \
     $(PLUS)/osdebug.o \
     $(PLUS)/string-util.o \
     $(PLUS)/host.o \
-    $(PLUS)/mmtest.o
+    $(PLUS)/mmtest.o \
+#	$(PLUS)/stm32_p103.o \
+	$(PLUS)/romfs.o \
 
 # Extra files needed when mainCREATE_SIMPLE_LED_FLASHER_DEMO_ONLY is defined 0
 COMPLEX_LED_OBJS += \
